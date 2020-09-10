@@ -14,14 +14,13 @@ const webhooks = new Webhooks({
 });
 
 webhooks.on("pull_request_review", ({ id, name, payload }) => {
-    console.log(name, "event received");
-    console.log("state is", payload.review.state);
-    console.log("number:", payload.pull_request.number)
     if (payload.repository.full_name != "v8-riscv/v8" ||
         payload.review.state != "approved") {
         console.log(`Ignoring ${payload.repository.full_name} !${payload.pull_request.number}: ${payload.review.state}`);
         return;
     }
+
+    console.log(`Testing ${payload.repository.full_name} !${payload.pull_request.number}`);
     runAndReportStatus(payload.pull_request.number, payload.pull_request.head.sha);
 });
 
