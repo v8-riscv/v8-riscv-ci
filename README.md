@@ -16,7 +16,7 @@ When it sends this status, it includes a link to the output from the command, so
 
 ### Setup
 
-First, you must create a file, `.env` which stores the sensitive data:
+First, you must define the following environment variables or create a file, `.env`, which stores the sensitive data:
 
 ```
 BASE_URL=<URL-of-this-server>
