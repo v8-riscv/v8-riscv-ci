@@ -17,22 +17,39 @@ const webhooks = new Webhooks({
 
 // Create the logs directory if it does not already exist
 var logDir = './logs';
-if (!fs.existsSync(logDir)){
+if (!fs.existsSync(logDir)) {
     fs.mkdirSync(logDir);
 }
 
 // Read the configuration file
 var config = JSON.parse(fs.readFileSync('config.json'));
 
-webhooks.on("pull_request_review", ({ id, name, payload }) => {
+// When the PR is opened or edited by an approved user, run the build and test
+webhooks.on("pull_request", ({ id, name, payload }) => {
     if (payload.repository.full_name != `${config.owner}/${config.repo}` ||
-        payload.review.state != "approved" ||
-        !config.approvers.includes(payload.review.user.login)) {
-        console.log(`Ignoring ${payload.repository.full_name} !${payload.pull_request.number}: ${payload.review.user.login} ${payload.review.state}`);
+        !(payload.action == "opened" || payload.action == "edited") ||
+        !octokit.orgs.checkMembershipForUser({ org: config.owner, username: payload.pull_request.user.login })) {
+        console.log(`Ignoring PR #${payload.number} ${payload.action} by ${payload.pull_request.user.login}`);
         return;
     }
 
-    console.log(`Testing ${payload.repository.full_name} !${payload.pull_request.number}`);
+    console.log(`Testing ${payload.repository.full_name} PR #${payload.number}`);
+    runAndReportStatus(payload.number, payload.pull_request.head.sha);
+});
+
+// When a PR is approved by an approved user, run the build and test
+webhooks.on("pull_request_review", ({ id, name, payload }) => {
+    if (payload.repository.full_name != `${config.owner}/${config.repo}` ||
+        payload.review.state != "approved" ||
+        // If the reviewer is not approved
+        !octokit.orgs.checkMembershipForUser({ org: config.owner, username: payload.review.user.login }) ||
+        // If the PR user is approved (already tested)
+        octokit.orgs.checkMembershipForUser({ org: config.owner, username: payload.pull_request.user })) {
+        console.log(`Ignoring ${payload.repository.full_name} PR #${payload.pull_request.number}: ${payload.review.user.login} ${payload.review.state}`);
+        return;
+    }
+
+    console.log(`Testing ${payload.repository.full_name} PR #${payload.pull_request.number}`);
     runAndReportStatus(payload.pull_request.number, payload.pull_request.head.sha);
 });
 
@@ -80,7 +97,7 @@ function runAndReportStatus(prNum, sha) {
                 context: "ci"
             });
 
-            logStream = fs.createWriteStream(`./logs/${logfile}`, {flags: 'a'});
+            logStream = fs.createWriteStream(`./logs/${logfile}`, { flags: 'a' });
             var run = spawn('docker', ['run', `${config.owner}/${config.repo}:${prNum}`]);
             run.stdout.pipe(logStream);
             run.stderr.pipe(logStream);
