@@ -39,7 +39,7 @@ function runAndReportStatus(prNum, sha) {
     const logfile = `${prNum}-${timestamp}.log`;
     var logStream = fs.createWriteStream(`./logs/${logfile}`);
 
-    console.log("Send pending");
+    console.log(`Send pending to PR #${prNum}`);
     octokit.repos.createCommitStatus({
         owner: config.owner,
         repo: config.repo,
@@ -50,13 +50,13 @@ function runAndReportStatus(prNum, sha) {
         context: "ci"
     });
 
-    console.log("Build");
+    console.log(`Build PR #${prNum}`);
     var build = spawn('docker', ['build', '-t', `${config.owner}/${config.repo}:${prNum}`, '--build-arg', `pr_num=${prNum}`, '.']);
     build.stdout.pipe(logStream);
     build.stderr.pipe(logStream);
     build.on('close', function (code) {
         if (code != 0) {
-            console.log("Send failure");
+            console.log(`Send failure to PR #${prNum}`);
             octokit.repos.createCommitStatus({
                 owner: config.owner,
                 repo: config.repo,
@@ -67,7 +67,7 @@ function runAndReportStatus(prNum, sha) {
                 context: "ci"
             });
         } else {
-            console.log("Run");
+            console.log(`Run PR #${prNum}`);
             octokit.repos.createCommitStatus({
                 owner: config.owner,
                 repo: config.repo,
@@ -84,7 +84,7 @@ function runAndReportStatus(prNum, sha) {
             run.stderr.pipe(logStream);
             run.on('close', function (code) {
                 if (code != 0) {
-                    console.log("Send failure");
+                    console.log(`Send failure to PR #${prNum}`);
                     octokit.repos.createCommitStatus({
                         owner: config.owner,
                         repo: config.repo,
@@ -95,7 +95,7 @@ function runAndReportStatus(prNum, sha) {
                         context: "ci"
                     });
                 } else {
-                    console.log("Send success");
+                    console.log(`Send success to PR #${prNum}`);
                     octokit.repos.createCommitStatus({
                         owner: config.owner,
                         repo: config.repo,
