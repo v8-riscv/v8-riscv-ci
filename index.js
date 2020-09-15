@@ -26,31 +26,12 @@ var config = JSON.parse(fs.readFileSync('config.json'));
 
 // When the PR is opened or edited by an approved user, run the build and test
 webhooks.on("pull_request", ({ id, name, payload }) => {
-    if (payload.repository.full_name != `${config.owner}/${config.repo}` ||
-        !(payload.action == "opened" || payload.action == "edited") ||
-        !octokit.orgs.checkMembershipForUser({ org: config.owner, username: payload.pull_request.user.login })) {
-        console.log(`Ignoring PR #${payload.number} ${payload.action} by ${payload.pull_request.user.login}`);
-        return;
-    }
-
-    console.log(`Testing ${payload.repository.full_name} PR #${payload.number}`);
-    runAndReportStatus(payload.number, payload.pull_request.head.sha);
+    handlePullRequest(payload);
 });
 
 // When a PR is approved by an approved user, run the build and test
 webhooks.on("pull_request_review", ({ id, name, payload }) => {
-    if (payload.repository.full_name != `${config.owner}/${config.repo}` ||
-        payload.review.state != "approved" ||
-        // If the reviewer is not approved
-        !octokit.orgs.checkMembershipForUser({ org: config.owner, username: payload.review.user.login }) ||
-        // If the PR user is approved (already tested)
-        octokit.orgs.checkMembershipForUser({ org: config.owner, username: payload.pull_request.user })) {
-        console.log(`Ignoring ${payload.repository.full_name} PR #${payload.pull_request.number}: ${payload.review.user.login} ${payload.review.state}`);
-        return;
-    }
-
-    console.log(`Testing ${payload.repository.full_name} PR #${payload.pull_request.number}`);
-    runAndReportStatus(payload.pull_request.number, payload.pull_request.head.sha);
+    handlePullRequestReview(payload);
 });
 
 function runAndReportStatus(prNum, sha) {
@@ -128,6 +109,46 @@ function runAndReportStatus(prNum, sha) {
             });
         }
     });
+}
+
+async function isMember(org, user) {
+    try {
+        await octokit.orgs.checkMembershipForUser({ org: org, username: user });
+    } catch {
+        return false;
+    }
+    return true;
+}
+
+async function handlePullRequest(payload) {
+    let member = await isMember(config.owner, payload.pull_request.user.login)
+    if (payload.repository.full_name != `${config.owner}/${config.repo}` ||
+        !(payload.action == "opened" || payload.action == "edited") ||
+        !member) {
+        console.log(`Ignoring PR #${payload.number} ${payload.action} by ${payload.pull_request.user.login}`);
+        return;
+    }
+
+    console.log(`Testing ${payload.repository.full_name} PR #${payload.number}`);
+    runAndReportStatus(payload.number, payload.pull_request.head.sha);
+}
+
+async function handlePullRequestReview(payload) {
+    let reviewerIsMember = await isMember(config.owner, payload.review.user.login);
+    let ownerIsMember = await isMember(config.owner, payload.pull_request.user);
+
+    if (payload.repository.full_name != `${config.owner}/${config.repo}` ||
+        payload.review.state != "approved" ||
+        // If the reviewer is not approved
+        !reviewerIsMember ||
+        // If the PR user is approved (already tested)
+        ownerIsMember) {
+        console.log(`Ignoring ${payload.repository.full_name} PR #${payload.pull_request.number}: ${payload.review.user.login} ${payload.review.state}`);
+        return;
+    }
+
+    console.log(`Testing ${payload.repository.full_name} PR #${payload.pull_request.number}`);
+    runAndReportStatus(payload.pull_request.number, payload.pull_request.head.sha);
 }
 
 app.use('/hooks', webhooks.middleware);
