@@ -135,7 +135,7 @@ async function handlePullRequest(payload) {
 
 async function handlePullRequestReview(payload) {
     let reviewerIsMember = await isMember(config.owner, payload.review.user.login);
-    let ownerIsMember = await isMember(config.owner, payload.pull_request.user);
+    let ownerIsMember = await isMember(config.owner, payload.pull_request.user.login);
 
     if (payload.repository.full_name != `${config.owner}/${config.repo}` ||
         payload.review.state != "approved" ||
