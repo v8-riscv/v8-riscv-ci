@@ -6,11 +6,6 @@
 
 FROM ubuntu:bionic as v8-base
 
-ARG repo=v8-riscv/v8
-ENV GITHUB_REPOSITORY=$repo
-ARG pr_num=1
-ENV PR_NUM=$pr_num
-
 RUN apt-get update && apt-get upgrade -yqq
 
 RUN DEBIAN_FRONTEND=noninteractive \
@@ -32,6 +27,11 @@ RUN (cd /v8 && ./build/install-build-deps.sh --no-prompt --no-arm)
 
 
 FROM v8-base as v8-riscv
+
+ARG repo=v8-riscv/v8
+ENV GITHUB_REPOSITORY=$repo
+ARG pr_num=1
+ENV PR_NUM=$pr_num
 
 RUN (cd /v8 && \
     git remote add riscv https://github.com/${GITHUB_REPOSITORY} && \
