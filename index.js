@@ -123,7 +123,7 @@ async function isMember(org, user) {
 async function handlePullRequest(payload) {
     let member = await isMember(config.owner, payload.pull_request.user.login)
     if (payload.repository.full_name != `${config.owner}/${config.repo}` ||
-        !(payload.action == "opened" || payload.action == "edited") ||
+        !(payload.action == "opened" || payload.action == "edited" || payload.action == "synchronize") ||
         !member) {
         console.log(`Ignoring PR #${payload.number} ${payload.action} by ${payload.pull_request.user.login}`);
         return;
