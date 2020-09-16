@@ -14,6 +14,12 @@ When it sends this status, it includes a link to the output from the command, so
 
 ## Usage
 
+### Prerequisites
+
+This tool is built in Node.js, so you will need to ensure that is installed. You can install it via your OS's [package manager](https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions-enterprise-linux-fedora-and-snap-packages) or by [downloading a installer](https://nodejs.org/en/download/).
+
+It also uses docker to build and run the tests, so you will need to have [docker installed](https://docs.docker.com/get-docker/) as well.
+
 ### Setup
 
 First, you must define the following environment variables or create a file, `.env`, which stores the sensitive data:
@@ -24,9 +30,9 @@ WEBHOOK_SECRET=<my-secret>
 GITHUB_TOKEN=<my-token>
 ```
 
-The webhook secret must match the value in the GitHub [webhooks settings](https://github.com/v8-riscv/v8/settings/hooks). The GitHub token can be a [personal access token](https://github.com/settings/tokens) that has the *repo:status* permissions for the v8-riscv/v8 repo.
+The webhook secret must match the value in the GitHub [webhooks settings](https://github.com/v8-riscv/v8/settings/hooks). The GitHub token can be a [personal access token](https://github.com/settings/tokens) that has the *repo:status* permissions for the v8-riscv/v8 repo (to post statuses) and the *read:org* permission for the v8-riscv organization (to read organization members).
 
-Next, make any changes needed to the configuration in `config.json`. You'll need to add approvers to the list if nothing else. These should be the GitHub user names of people whose approval will trigger the CI job.
+Next, make any changes needed to the configuration in `config.json`.
 
 ### Run the Server
 
