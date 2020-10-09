@@ -43,3 +43,10 @@ npm start
 ```
 
 Setup the [webhooks](https://github.com/v8-riscv/v8/settings/hooks) to POST to this server, at the `/hooks` endpoint. If the server is running on a machine that does not have a static IP or is not accessible via the Internet, you may use [ngrok](https://ngrok.com/) to expose it as a public URL.
+
+Optionally daemonize this server using pm2:
+
+```
+pm2 start --name v8-ci index.js
+pm2 log v8-ci
+```
