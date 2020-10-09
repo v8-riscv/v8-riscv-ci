@@ -32,6 +32,7 @@ ARG repo=v8-riscv/v8
 ENV GITHUB_REPOSITORY=$repo
 ARG pr_num=1
 ENV PR_NUM=$pr_num
+ARG sha=xxx
 
 RUN (cd /v8 && \
     git remote add riscv https://github.com/${GITHUB_REPOSITORY} && \

@@ -51,7 +51,7 @@ function runAndReportStatus(prNum, sha) {
     });
 
     console.log(`Build PR #${prNum}`);
-    var build = spawn('docker', ['build', '-t', `${config.owner}/${config.repo}:${prNum}`, '--build-arg', `pr_num=${prNum}`, '.']);
+    var build = spawn('docker', ['build', '-t', `${config.owner}/${config.repo}:${prNum}`, '--build-arg', `pr_num=${prNum}`, '--build-arg', `sha=${sha}`, '.']);
     build.stdout.pipe(logStream);
     build.stderr.pipe(logStream);
     build.on('close', function (code) {
