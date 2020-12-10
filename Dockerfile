@@ -40,14 +40,10 @@ RUN (cd /v8 && \
     git checkout ci-${PR_NUM})
 
 RUN (cd /v8 && gclient sync --with_branch_heads --with_tags)
-RUN cp /v8/patches/build.patch /v8/build/
-RUN (cd /v8/build && git apply build.patch)
-RUN (cd /v8 && \
-    gn gen out/riscv64.sim --args='is_component_build=false is_debug=true target_cpu="x64" v8_target_cpu="riscv64" use_goma=false goma_dir="None"' && \
-    ninja -C out/riscv64.sim -j8)
+RUN (cd /v8 && /v8/tools/dev/gm.py riscv64.debug.all)
 
 
 FROM v8-riscv as v8-test
 
 WORKDIR /v8
-ENTRYPOINT ["./v8-riscv-tools/test-riscv.sh"]
+ENTRYPOINT ["/v8/tools/dev/gm.py"]

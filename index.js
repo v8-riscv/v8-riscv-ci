@@ -91,6 +91,8 @@ function runAndReportStatus(prNum, sha) {
       var run = spawn("docker", [
         "run",
         `${config.owner}/${config.repo}:${prNum}`,
+        "riscv64.debug.checkall",
+        "--progress=verbose",
       ]);
       run.stdout.pipe(logStream);
       run.stderr.pipe(logStream);
