@@ -34,14 +34,17 @@ ARG pr_num=1
 ENV PR_NUM=$pr_num
 ARG sha=xxx
 
-RUN (cd /v8 && \
-    git remote add riscv https://github.com/${GITHUB_REPOSITORY} && \
-    git fetch riscv pull/${PR_NUM}/head:ci-${PR_NUM} && \
-    git checkout ci-${PR_NUM})
+COPY commit-msg-check.sh /root/commit-msg-check.sh
+WORKDIR /v8
+RUN (git remote add riscv https://github.com/${GITHUB_REPOSITORY} && \
+     git fetch riscv pull/${PR_NUM}/head:ci-${PR_NUM} && \
+     git checkout ci-${PR_NUM})
 
-RUN (cd /v8 && gclient sync --with_branch_heads --with_tags)
-RUN (cd /v8 && git cl format --presubmit && git diff --exit-code)
-RUN (cd /v8 && /v8/tools/dev/gm.py riscv64.debug.all)
+RUN git fetch riscv riscv64
+RUN bash /root/commit-msg-check.sh riscv/riscv64 $(git log --format="%H" -n 1)
+RUN git cl format --presubmit && git diff --exit-code
+RUN gclient sync --with_branch_heads --with_tags
+RUN ./tools/dev/gm.py riscv64.debug.all
 
 
 FROM v8-riscv as v8-test
