@@ -40,6 +40,7 @@ RUN (cd /v8 && \
     git checkout ci-${PR_NUM})
 
 RUN (cd /v8 && gclient sync --with_branch_heads --with_tags)
+RUN (cd /v8 && git cl format --presubmit && git diff --exit-code)
 RUN (cd /v8 && /v8/tools/dev/gm.py riscv64.debug.all)
 
 
