@@ -44,10 +44,13 @@ RUN git fetch riscv riscv64
 RUN bash /root/commit-msg-check.sh riscv/riscv64 $(git log --format="%H" -n 1)
 RUN git cl format --presubmit && git diff --exit-code
 RUN gclient sync --with_branch_heads --with_tags
-RUN ./tools/dev/gm.py riscv64.debug.all
 
 
-FROM v8-riscv as v8-test
+FROM v8-riscv as v8-build
 
-WORKDIR /v8
-ENTRYPOINT ["/v8/tools/dev/gm.py"]
+RUN ./tools/dev/gm.py riscv64.debug.all --progress=verbose
+
+
+FROM v8-build as v8-run
+
+RUN ./tools/dev/gm.py riscv64.debug.checkall --progress=verbose

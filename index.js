@@ -36,22 +36,13 @@ webhooks.on("pull_request_review", ({ id, name, payload }) => {
 
 function runAndReportStatus(prNum, sha) {
   let timestamp = new Date().toISOString();
-  const logfile = `${prNum}-${timestamp}.log`;
+  var logfile = `${prNum}-precheck-${timestamp}.log`;
   var logStream = fs.createWriteStream(`./logs/${logfile}`);
 
-  console.log(`Send pending to PR #${prNum}`);
-  octokit.repos.createCommitStatus({
-    owner: config.owner,
-    repo: config.repo,
-    sha: sha,
-    state: "pending",
-    target_url: `${process.env.BASE_URL}/logs/${logfile}`,
-    description: "Building",
-    context: "ci",
-  });
+  sendStatus(prNum, sha, "precheck", "pending", logfile);
 
-  console.log(`Build PR #${prNum}`);
-  var build = spawn("docker", [
+  console.log(`Pre-check PR #${prNum}`);
+  var precheck = spawn("docker", [
     "build",
     "-t",
     `${config.owner}/${config.repo}:${prNum}`,
@@ -59,69 +50,68 @@ function runAndReportStatus(prNum, sha) {
     `pr_num=${prNum}`,
     "--build-arg",
     `sha=${sha}`,
+    "--target=v8-riscv",
     ".",
   ]);
-  build.stdout.pipe(logStream);
-  build.stderr.pipe(logStream);
-  build.on("close", function (code) {
+  precheck.stdout.pipe(logStream);
+  precheck.stderr.pipe(logStream);
+  precheck.on("close", function (code) {
     if (code != 0) {
-      console.log(`Send failure to PR #${prNum}`);
-      octokit.repos.createCommitStatus({
-        owner: config.owner,
-        repo: config.repo,
-        sha: sha,
-        state: "failure",
-        target_url: `${process.env.BASE_URL}/logs/${logfile}`,
-        description: "Build failure",
-        context: "ci",
-      });
+      sendStatus(prNum, sha, "precheck", "failure", logfile);
     } else {
-      console.log(`Run PR #${prNum}`);
-      octokit.repos.createCommitStatus({
-        owner: config.owner,
-        repo: config.repo,
-        sha: sha,
-        state: "pending",
-        target_url: `${process.env.BASE_URL}/logs/${logfile}`,
-        description: "Running tests",
-        context: "ci",
-      });
+      sendStatus(prNum, sha, "precheck", "success", logfile);
 
-      logStream = fs.createWriteStream(`./logs/${logfile}`, { flags: "a" });
-      var run = spawn("docker", [
-        "run",
+      console.log(`Build PR #${prNum}`);
+      logfile = `${prNum}-build-${timestamp}.log`;
+      logStream = fs.createWriteStream(`./logs/${logfile}`);
+      sendStatus(prNum, sha, "build", "pending", logfile);
+
+      var build = spawn("docker", [
+        "build",
+        "-t",
         `${config.owner}/${config.repo}:${prNum}`,
-        "riscv64.debug.checkall",
-        "--progress=verbose",
+        "--build-arg",
+        `pr_num=${prNum}`,
+        "--build-arg",
+        `sha=${sha}`,
+        "--target=v8-build",
+        ".",
       ]);
-      run.stdout.pipe(logStream);
-      run.stderr.pipe(logStream);
-      run.on("close", function (code) {
+      build.stdout.pipe(logStream);
+      build.stderr.pipe(logStream);
+      build.on("close", function (code) {
         if (code != 0) {
-          console.log(`Send failure to PR #${prNum}`);
-          octokit.repos.createCommitStatus({
-            owner: config.owner,
-            repo: config.repo,
-            sha: sha,
-            state: "failure",
-            target_url: `${process.env.BASE_URL}/logs/${logfile}`,
-            description: "Test failure",
-            context: "ci",
-          });
+          sendStatus(prNum, sha, "build", "failure", logfile);
         } else {
-          console.log(`Send success to PR #${prNum}`);
-          octokit.repos.createCommitStatus({
-            owner: config.owner,
-            repo: config.repo,
-            sha: sha,
-            state: "success",
-            target_url: `${process.env.BASE_URL}/logs/${logfile}`,
-            description: "Success",
-            context: "ci",
-          });
+          sendStatus(prNum, sha, "build", "success", logfile);
 
-          // On success, delete the docker containers/images
-          cleanupDocker(`${config.owner}/${config.repo}:${prNum}`);
+          console.log(`Run PR #${prNum}`);
+          logfile = `${prNum}-run-${timestamp}.log`;
+          logStream = fs.createWriteStream(`./logs/${logfile}`);
+          sendStatus(prNum, sha, "run", "pending", logfile);
+
+          var run = spawn("docker", [
+            "build",
+            "-t",
+            `${config.owner}/${config.repo}:${prNum}`,
+            "--build-arg",
+            `pr_num=${prNum}`,
+            "--build-arg",
+            `sha=${sha}`,
+            ".",
+          ]);
+          run.stdout.pipe(logStream);
+          run.stderr.pipe(logStream);
+          run.on("close", function (code) {
+            if (code != 0) {
+              sendStatus(prNum, sha, "run", "failure", logfile);
+            } else {
+              sendStatus(prNum, sha, "run", "success", logfile);
+
+              // On success, delete the docker containers/images
+              cleanupDocker(`${config.owner}/${config.repo}:${prNum}`);
+            }
+          });
         }
       });
     }
@@ -135,6 +125,18 @@ async function isMember(org, user) {
     return false;
   }
   return true;
+}
+
+async function sendStatus(prNum, sha, context, state, logfile) {
+  console.log(`Send ${state} for ${context} to PR #${prNum}`);
+  octokit.repos.createCommitStatus({
+    owner: config.owner,
+    repo: config.repo,
+    sha: sha,
+    state: state,
+    target_url: `${process.env.BASE_URL}/logs/${logfile}`,
+    context: context,
+  });
 }
 
 async function handlePullRequest(payload) {
