@@ -3,6 +3,7 @@ dotenv.config();
 const express = require("express");
 const app = express();
 const fs = require("fs");
+const path = require("path");
 const { spawn, execSync } = require("child_process");
 const { Webhooks } = require("@octokit/webhooks");
 const { Octokit } = require("@octokit/rest");
@@ -32,6 +33,10 @@ webhooks.on("pull_request", ({ id, name, payload }) => {
 // When a PR is approved by an approved user, run the build and test
 webhooks.on("pull_request_review", ({ id, name, payload }) => {
   handlePullRequestReview(payload);
+});
+
+webhooks.on("push", ({ id, name, payload }) => {
+  handlePush(payload);
 });
 
 function runAndReportStatus(prNum, sha) {
@@ -118,6 +123,86 @@ function runAndReportStatus(prNum, sha) {
   });
 }
 
+async function buildAndRelease(sha) {
+  let timestamp = new Date().toISOString();
+  var logfile = `${timestamp}-${sha}-release.log`;
+  var logStream = fs.createWriteStream(`./logs/${logfile}`);
+
+  console.log("Generate release");
+  var build = spawn("docker", [
+    "build",
+    "-f",
+    "Dockerfile.release",
+    "-t",
+    `${config.owner}/${config.repo}:RELEASE`,
+    ".",
+  ]);
+  build.stdout.pipe(logStream);
+  build.stderr.pipe(logStream);
+  build.on("close", async function (code) {
+    if (code != 0) {
+      console.log("  Release failed. Review logs.");
+    } else {
+      console.log("  Release build successful!");
+      execSync("bash release.sh");
+      console.log("  Created RPM");
+
+      // Delete the LATEST release (if it exists)
+      try {
+        let latest = await octokit.repos.getReleaseByTag({
+          owner: config.owner,
+          repo: config.repo,
+          tag: "LATEST",
+        });
+        await octokit.repos.deleteRelease({
+          owner: config.owner,
+          repo: config.repo,
+          release_id: latest.data.id,
+        });
+        console.log("  Deleted old release");
+      } catch(err) {
+        console.log("  Error deleting old release:", err);
+      }
+
+      // Create the new release
+      var release;
+      try {
+        release = await octokit.repos.createRelease({
+          owner: config.owner,
+          repo: config.repo,
+          tag_name: "LATEST",
+          name: "LATEST",
+          target_commitish: sha,
+        });
+      } catch (err) {
+        console.log("  Error releasing build:", err);
+        return;
+      }
+      console.log("  Created release");
+
+      // Upload the RPM to the release
+      let filename = fs.readFileSync("rpm-file.txt", "utf8");
+      let name = path.basename(filename);
+      try {
+        let response = await octokit.repos.uploadReleaseAsset({
+          owner: config.owner,
+          repo: config.repo,
+          release_id: release.data.id,
+          name: name,
+          data: fs.readFileSync(filename),
+          url: release.data.upload_url,
+          headers: {
+            "content-type": "application/tar+gzip",
+          },
+        });
+      } catch (err) {
+        console.log("  Error uploading asset:", err);
+      }
+      console.log("  Uploaded asset");
+    }
+  });
+}
+
 async function isMember(org, user) {
   try {
     await octokit.orgs.checkMembershipForUser({ org: org, username: user });
@@ -197,6 +282,23 @@ async function handlePullRequestReview(payload) {
     payload.pull_request.number,
     payload.pull_request.head.sha
   );
+}
+
+async function handlePush(payload) {
+  if (
+    payload.repository.full_name != `${config.owner}/${config.repo}` ||
+    payload.ref != "refs/heads/riscv64"
+  ) {
+    console.log(
+      `Ignoring push to ${payload.repository.full_name}:${payload.ref}`
+    );
+    return;
+  }
+
+  console.log(
+    `Releasing ${payload.repository.full_name} SHA #${payload.after}`
+  );
+  buildAndRelease(payload.after);
 }
 
 function cleanupDocker(tag) {

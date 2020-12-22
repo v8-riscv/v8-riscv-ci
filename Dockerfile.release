@@ -1,0 +1,39 @@
+# ==============================================================================
+# Dockerfile to test a branch from a PR
+# Pass PR number when building:
+#   docker build --build-arg pr_num=NNN .
+# ==============================================================================
+
+FROM ubuntu:bionic as v8-base
+
+RUN apt-get update && apt-get upgrade -yqq
+
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt-get -yqq install git \
+                         curl \
+                         python \
+                         lsb-release \
+                         pkg-config \
+                         tzdata \
+                         sudo
+
+RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+
+ENV PATH="/depot_tools:${PATH}"
+
+RUN fetch v8
+
+RUN (cd /v8 && ./build/install-build-deps.sh --no-prompt --no-arm)
+
+
+FROM v8-base as v8-release
+
+ARG repo=v8-riscv/v8
+ENV GITHUB_REPOSITORY=$repo
+
+WORKDIR /v8
+RUN git remote add riscv https://github.com/${GITHUB_REPOSITORY}
+RUN git fetch riscv riscv64
+RUN git checkout riscv64
+RUN gclient sync --with_branch_heads --with_tags
+RUN ./tools/dev/gm.py riscv64.release.all
