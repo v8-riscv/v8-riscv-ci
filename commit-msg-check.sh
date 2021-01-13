@@ -5,6 +5,11 @@ source_branch=$2
 
 commits=$(git rev-list ${target_branch}..${source_branch})
 for commit in $commits; do
+    # If this commit is in master, skip it
+    if git branch master --contains $commit &> /dev/null; then
+        continue
+    fi
+
     message=$(git log --format=%B -n 1 $commit)
     lineNum=0
     while IFS=$'\n' read -r line; do
