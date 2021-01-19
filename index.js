@@ -55,7 +55,7 @@ function runAndReportStatus(prNum, sha) {
     `pr_num=${prNum}`,
     "--build-arg",
     `sha=${sha}`,
-    "--target=v8-riscv",
+    "--target=v8-precheck",
     ".",
   ]);
   precheck.stdout.pipe(logStream);
