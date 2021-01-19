@@ -144,7 +144,7 @@ async function buildAndRelease(sha) {
       console.log("  Release failed. Review logs.");
     } else {
       console.log("  Release build successful!");
-      execSync("bash release.sh");
+      execSync(`bash release.sh ${sha}`);
       console.log("  Created RPM");
 
       // Delete the LATEST release (if it exists)
