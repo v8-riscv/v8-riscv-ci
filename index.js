@@ -57,7 +57,9 @@ function runAndReportStatus(prNum, sha) {
     `sha=${sha}`,
     "--target=v8-precheck",
     ".",
-  ]);
+  ], {
+    env: { ...process.env, DOCKER_BUILDKIT: 1 }
+  });
   precheck.stdout.pipe(logStream);
   precheck.stderr.pipe(logStream);
   precheck.on("close", function (code) {
@@ -82,7 +84,9 @@ function runAndReportStatus(prNum, sha) {
       `sha=${sha}`,
       "--target=v8-build",
       ".",
-    ]);
+    ], {
+      env: { ...process.env, DOCKER_BUILDKIT: 1 }
+    });
     build.stdout.pipe(logStream);
     build.stderr.pipe(logStream);
     build.on("close", function (code) {
@@ -105,7 +109,9 @@ function runAndReportStatus(prNum, sha) {
           "--build-arg",
           `sha=${sha}`,
           ".",
-        ]);
+        ], {
+          env: { ...process.env, DOCKER_BUILDKIT: 1 }
+        });
         run.stdout.pipe(logStream);
         run.stderr.pipe(logStream);
         run.on("close", function (code) {
@@ -160,7 +166,7 @@ async function buildAndRelease(sha) {
           release_id: latest.data.id,
         });
         console.log("  Deleted old release");
-      } catch(err) {
+      } catch (err) {
         console.log("  Error deleting old release:", err);
       }
 
@@ -305,7 +311,7 @@ function cleanupDocker(tag) {
   try {
     execSync(`docker rm $(docker ps -a -q --filter ancestor=${tag})`);
     execSync(`docker rmi ${tag}`);
-  } catch {}
+  } catch { }
 }
 
 app.use("/hooks", webhooks.middleware);
