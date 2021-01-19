@@ -65,61 +65,61 @@ function runAndReportStatus(prNum, sha) {
       sendStatus(prNum, sha, "precheck", "failure", logfile);
     } else {
       sendStatus(prNum, sha, "precheck", "success", logfile);
-
-      console.log(`Build PR #${prNum}`);
-      logfile = `${prNum}-build-${timestamp}.log`;
-      logStream = fs.createWriteStream(`./logs/${logfile}`);
-      sendStatus(prNum, sha, "build", "pending", logfile);
-
-      var build = spawn("docker", [
-        "build",
-        "-t",
-        `${config.owner}/${config.repo}:${prNum}`,
-        "--build-arg",
-        `pr_num=${prNum}`,
-        "--build-arg",
-        `sha=${sha}`,
-        "--target=v8-build",
-        ".",
-      ]);
-      build.stdout.pipe(logStream);
-      build.stderr.pipe(logStream);
-      build.on("close", function (code) {
-        if (code != 0) {
-          sendStatus(prNum, sha, "build", "failure", logfile);
-        } else {
-          sendStatus(prNum, sha, "build", "success", logfile);
-
-          console.log(`Run PR #${prNum}`);
-          logfile = `${prNum}-run-${timestamp}.log`;
-          logStream = fs.createWriteStream(`./logs/${logfile}`);
-          sendStatus(prNum, sha, "run", "pending", logfile);
-
-          var run = spawn("docker", [
-            "build",
-            "-t",
-            `${config.owner}/${config.repo}:${prNum}`,
-            "--build-arg",
-            `pr_num=${prNum}`,
-            "--build-arg",
-            `sha=${sha}`,
-            ".",
-          ]);
-          run.stdout.pipe(logStream);
-          run.stderr.pipe(logStream);
-          run.on("close", function (code) {
-            if (code != 0) {
-              sendStatus(prNum, sha, "run", "failure", logfile);
-            } else {
-              sendStatus(prNum, sha, "run", "success", logfile);
-
-              // On success, delete the docker containers/images
-              cleanupDocker(`${config.owner}/${config.repo}:${prNum}`);
-            }
-          });
-        }
-      });
     }
+
+    console.log(`Build PR #${prNum}`);
+    logfile = `${prNum}-build-${timestamp}.log`;
+    logStream = fs.createWriteStream(`./logs/${logfile}`);
+    sendStatus(prNum, sha, "build", "pending", logfile);
+
+    var build = spawn("docker", [
+      "build",
+      "-t",
+      `${config.owner}/${config.repo}:${prNum}`,
+      "--build-arg",
+      `pr_num=${prNum}`,
+      "--build-arg",
+      `sha=${sha}`,
+      "--target=v8-build",
+      ".",
+    ]);
+    build.stdout.pipe(logStream);
+    build.stderr.pipe(logStream);
+    build.on("close", function (code) {
+      if (code != 0) {
+        sendStatus(prNum, sha, "build", "failure", logfile);
+      } else {
+        sendStatus(prNum, sha, "build", "success", logfile);
+
+        console.log(`Run PR #${prNum}`);
+        logfile = `${prNum}-run-${timestamp}.log`;
+        logStream = fs.createWriteStream(`./logs/${logfile}`);
+        sendStatus(prNum, sha, "run", "pending", logfile);
+
+        var run = spawn("docker", [
+          "build",
+          "-t",
+          `${config.owner}/${config.repo}:${prNum}`,
+          "--build-arg",
+          `pr_num=${prNum}`,
+          "--build-arg",
+          `sha=${sha}`,
+          ".",
+        ]);
+        run.stdout.pipe(logStream);
+        run.stderr.pipe(logStream);
+        run.on("close", function (code) {
+          if (code != 0) {
+            sendStatus(prNum, sha, "run", "failure", logfile);
+          } else {
+            sendStatus(prNum, sha, "run", "success", logfile);
+
+            // On success, delete the docker containers/images
+            cleanupDocker(`${config.owner}/${config.repo}:${prNum}`);
+          }
+        });
+      }
+    });
   });
 }
 

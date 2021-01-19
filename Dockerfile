@@ -40,6 +40,7 @@ RUN (git remote add riscv https://github.com/${GITHUB_REPOSITORY} && \
      git fetch riscv pull/${PR_NUM}/head:ci-${PR_NUM} && \
      git checkout ci-${PR_NUM})
 
+
 FROM v8-riscv as v8-precheck
 RUN git fetch riscv riscv64
 RUN bash /root/commit-msg-check.sh riscv/riscv64 $(git log --format="%H" -n 1)
