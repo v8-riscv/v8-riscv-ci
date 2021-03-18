@@ -292,8 +292,7 @@ async function handlePullRequestReview(payload) {
 
 async function handlePush(payload) {
   if (
-    payload.repository.full_name != `${config.owner}/${config.repo}` ||
-    payload.ref != "refs/heads/riscv64"
+    payload.repository.full_name != `${config.owner}/${config.repo}`
   ) {
     console.log(
       `Ignoring push to ${payload.repository.full_name}:${payload.ref}`
