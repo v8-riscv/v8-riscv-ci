@@ -231,7 +231,7 @@ async function sendStatus(prNum, sha, context, state, logfile) {
 }
 
 async function handlePullRequest(payload) {
-  let member = await isMember(config.owner, payload.pull_request.user.login);
+  let member = await isMember(config.memberGroup, payload.pull_request.user.login);
   if (
     payload.repository.full_name != `${config.owner}/${config.repo}` ||
     !(
@@ -259,11 +259,11 @@ async function handlePullRequest(payload) {
 
 async function handlePullRequestReview(payload) {
   let reviewerIsMember = await isMember(
-    config.owner,
+    config.memberGroup,
     payload.review.user.login
   );
   let ownerIsMember = await isMember(
-    config.owner,
+    config.memberGroup,
     payload.pull_request.user.login
   );
 

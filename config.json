@@ -1,4 +1,5 @@
 {
     "owner": "riscv",
+    "memberGroup": "v8-riscv",
     "repo": "v8"
 }
