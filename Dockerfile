@@ -6,18 +6,20 @@
 
 FROM ubuntu:bionic as v8-base
 
-RUN apt-get update && apt-get upgrade -yqq
+RUN apt-get upgrade -yqq
 
-RUN DEBIAN_FRONTEND=noninteractive \
-    apt-get -yqq install git \
-                         curl \
-                         python \
-                         lsb-release \
-                         pkg-config \
-                         tzdata \
-                         sudo
+RUN apt-get update && \
+     DEBIAN_FRONTEND=noninteractive \
+     apt-get -yqq install \
+          curl \
+          git \
+          lsb-release \
+          pkg-config \
+          python \
+          python-pip \
+          sudo \
+          tzdata
 
-RUN apt install -y python-pip
 RUN pip install coverage
 RUN pip install numpy
 RUN pip install mock
