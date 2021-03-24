@@ -17,6 +17,11 @@ RUN DEBIAN_FRONTEND=noninteractive \
                          tzdata \
                          sudo
 
+RUN apt install -y python-pip
+RUN pip install coverage
+RUN pip install numpy
+RUN pip install mock
+
 RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 
 ENV PATH="/depot_tools:${PATH}"
@@ -44,7 +49,7 @@ RUN (git remote add riscv https://github.com/${GITHUB_REPOSITORY} && \
 FROM v8-riscv as v8-precheck
 RUN git fetch riscv riscv64
 RUN bash /root/commit-msg-check.sh riscv/riscv64 $(git log --format="%H" -n 1)
-RUN git cl format --presubmit && git diff --exit-code
+RUN python tools/v8_presubmit.py --no-linter-cache
 RUN gclient sync --with_branch_heads --with_tags
 
 
