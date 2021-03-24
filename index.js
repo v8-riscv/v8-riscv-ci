@@ -39,36 +39,50 @@ webhooks.on("push", ({ id, name, payload }) => {
   handlePush(payload);
 });
 
-function runAndReportStatus(prNum, sha) {
-  let timestamp = new Date().toISOString();
-  var logfile = `${prNum}-precheck-${timestamp}.log`;
-  var logStream = fs.createWriteStream(`./logs/${logfile}`);
+// When a "/retest" comment is added, re-trigger the tests
+webhooks.on("issue_comment", ({ id, name, payload }) => {
+  handleComment(payload);
+});
 
-  sendStatus(prNum, sha, "precheck", "pending", logfile);
+function runPrecheck(prNum, sha) {
+  return new Promise((resolve, reject) => {
+    let timestamp = new Date().toISOString();
+    var logfile = `${prNum}-precheck-${timestamp}.log`;
+    var logStream = fs.createWriteStream(`./logs/${logfile}`);
 
-  console.log(`Pre-check PR #${prNum}`);
-  var precheck = spawn("docker", [
-    "build",
-    "-t",
-    `${config.owner}/${config.repo}:${prNum}`,
-    "--build-arg",
-    `pr_num=${prNum}`,
-    "--build-arg",
-    `sha=${sha}`,
-    "--target=v8-precheck",
-    ".",
-  ], {
-    env: { ...process.env, DOCKER_BUILDKIT: 1 }
+    sendStatus(prNum, sha, "precheck", "pending", logfile);
+
+    console.log(`Pre-check PR #${prNum}`);
+    var precheck = spawn("docker", [
+      "build",
+      "-t",
+      `${config.owner}/${config.repo}:${prNum}`,
+      "--build-arg",
+      `pr_num=${prNum}`,
+      "--build-arg",
+      `sha=${sha}`,
+      "--target=v8-precheck",
+      ".",
+    ], {
+      env: { ...process.env, DOCKER_BUILDKIT: 1 }
+    });
+    precheck.stdout.pipe(logStream);
+    precheck.stderr.pipe(logStream);
+    precheck.on("close", function (code) {
+      if (code != 0) {
+        sendStatus(prNum, sha, "precheck", "failure", logfile);
+        resolve(code);
+      } else {
+        sendStatus(prNum, sha, "precheck", "success", logfile);
+        resolve(0);
+      }
+    });
   });
-  precheck.stdout.pipe(logStream);
-  precheck.stderr.pipe(logStream);
-  precheck.on("close", function (code) {
-    if (code != 0) {
-      sendStatus(prNum, sha, "precheck", "failure", logfile);
-    } else {
-      sendStatus(prNum, sha, "precheck", "success", logfile);
-    }
+}
 
+function runBuild(prNum, sha) {
+  return new Promise((resolve, reject) => {
+    let timestamp = new Date().toISOString();
     console.log(`Build PR #${prNum}`);
     logfile = `${prNum}-build-${timestamp}.log`;
     logStream = fs.createWriteStream(`./logs/${logfile}`);
@@ -92,40 +106,61 @@ function runAndReportStatus(prNum, sha) {
     build.on("close", function (code) {
       if (code != 0) {
         sendStatus(prNum, sha, "build", "failure", logfile);
+        resolve(code);
       } else {
         sendStatus(prNum, sha, "build", "success", logfile);
-
-        console.log(`Run PR #${prNum}`);
-        logfile = `${prNum}-run-${timestamp}.log`;
-        logStream = fs.createWriteStream(`./logs/${logfile}`);
-        sendStatus(prNum, sha, "run", "pending", logfile);
-
-        var run = spawn("docker", [
-          "build",
-          "-t",
-          `${config.owner}/${config.repo}:${prNum}`,
-          "--build-arg",
-          `pr_num=${prNum}`,
-          "--build-arg",
-          `sha=${sha}`,
-          ".",
-        ], {
-          env: { ...process.env, DOCKER_BUILDKIT: 1 }
-        });
-        run.stdout.pipe(logStream);
-        run.stderr.pipe(logStream);
-        run.on("close", function (code) {
-          if (code != 0) {
-            sendStatus(prNum, sha, "run", "failure", logfile);
-          } else {
-            sendStatus(prNum, sha, "run", "success", logfile);
-
-            // On success, delete the docker containers/images
-            cleanupDocker(`${config.owner}/${config.repo}:${prNum}`);
-          }
-        });
+        resolve(0);
       }
     });
+  });
+}
+
+function runRun(prNum, sha) {
+  return new Promise((resolve, reject) => {
+    let timestamp = new Date().toISOString();
+    console.log(`Run PR #${prNum}`);
+    logfile = `${prNum}-run-${timestamp}.log`;
+    logStream = fs.createWriteStream(`./logs/${logfile}`);
+    sendStatus(prNum, sha, "run", "pending", logfile);
+
+    var run = spawn("docker", [
+      "build",
+      "-t",
+      `${config.owner}/${config.repo}:${prNum}`,
+      "--build-arg",
+      `pr_num=${prNum}`,
+      "--build-arg",
+      `sha=${sha}`,
+      ".",
+    ], {
+      env: { ...process.env, DOCKER_BUILDKIT: 1 }
+    });
+    run.stdout.pipe(logStream);
+    run.stderr.pipe(logStream);
+    run.on("close", function (code) {
+      if (code != 0) {
+        sendStatus(prNum, sha, "run", "failure", logfile);
+        resolve(code);
+      } else {
+        sendStatus(prNum, sha, "run", "success", logfile);
+        resolve(0);
+      }
+    });
+  });
+}
+
+function runAndReportStatus(prNum, sha) {
+  runPrecheck(prNum, sha).then(code => {
+    return runBuild(prNum, sha);
+  }).then(code => {
+    if (code == 0) {
+      return runRun(prNum, sha);
+    }
+  }).then(code => {
+    if (code == 0) {
+      // On success, delete the docker containers/images
+      cleanupDocker(`${config.owner}/${config.repo}:${prNum}`);
+    }
   });
 }
 
@@ -305,6 +340,44 @@ async function handlePush(payload) {
     `Releasing ${payload.repository.full_name} SHA #${payload.after}`
   );
   buildAndRelease(payload.after);
+}
+
+async function handleComment(payload) {
+  let commenterIsMember = await isMember(
+    config.memberGroup,
+    payload.sender.login
+  );
+  if (
+    payload.repository.full_name != `${config.owner}/${config.repo}` ||
+    !commenterIsMember ||
+    !payload.comment.body.startsWith("/retest") ||
+    !payload.issue.pull_request
+  ) {
+    console.log(`Ignoring comment on ${payload.issue.number}`);
+    return;
+  }
+
+  console.log(
+    `Re-testing ${payload.repository.full_name} PR #${payload.issue.number}`
+  );
+  try {
+    let pr = await octokit.pulls.get({
+      owner: config.owner,
+      repo: config.repo,
+      pull_number: payload.issue.number,
+    });
+    if (payload.comment.body == "/retest-precheck") {
+      runPrecheck(payload.issue.number, pr.data.head.sha);
+    } else if (payload.comment.body == "/retest-build") {
+      runBuild(payload.issue.number, pr.data.head.sha);
+    } else if (payload.comment.body == "/retest-run") {
+      runRun(payload.issue.number, pr.data.head.sha);
+    } else {
+      runAndReportStatus(payload.issue.number, pr.data.head.sha);
+    }
+  } catch (err) {
+    console.log("  Error re-starting tests:", err);
+  }
 }
 
 function cleanupDocker(tag) {
