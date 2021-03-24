@@ -46,7 +46,7 @@ RUN git fetch riscv riscv64
 RUN bash /root/commit-msg-check.sh riscv/riscv64 $(git log --format="%H" -n 1)
 RUN apt install python-pip
 RUN pip install coverage
-RUN pip pip install numpy
+RUN pip install numpy
 RUN pip install mock
 RUN python tools/v8_presubmit.py --no-linter-cache
 RUN gclient sync --with_branch_heads --with_tags
