@@ -56,10 +56,9 @@ RUN python tools/v8_presubmit.py --no-linter-cache
 
 
 FROM v8-riscv as v8-build
-
+RUN gclient sync --with_branch_heads --with_tags
 RUN ./tools/dev/gm.py riscv64.debug.all --progress=verbose
 
 
 FROM v8-build as v8-run
-
 RUN ./tools/dev/gm.py riscv64.debug.checkall --progress=verbose
