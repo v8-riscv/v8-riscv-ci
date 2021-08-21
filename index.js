@@ -27,14 +27,14 @@ var config = JSON.parse(fs.readFileSync("config.json"));
 
 // When the PR is opened or edited by an approved user, run the build and test
 webhooks.on("pull_request", ({ id, name, payload }) => {
-  console.log(`Handling pull request on ${payload.issue.number}`);
+  console.log(`Handling pull request.`);
 
   handlePullRequest(payload);
 });
 
 // When a PR is approved by an approved user, run the build and test
 webhooks.on("pull_request_review", ({ id, name, payload }) => {
-  console.log(`Handling review on ${payload.issue.number}`);
+  console.log(`Handling pr review.`);
 
   handlePullRequestReview(payload);
 });
@@ -45,7 +45,7 @@ webhooks.on("push", ({ id, name, payload }) => {
 
 // When a "/retest" comment is added, re-trigger the tests
 webhooks.on("issue_comment", ({ id, name, payload }) => {
-  console.log(`Handling comment on ${payload.issue.number}`);
+  console.log(`Handling comment on PRs.`);
   handleComment(payload);
 });
 
