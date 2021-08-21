@@ -9,7 +9,7 @@ const { Webhooks } = require("@octokit/webhooks");
 const { Octokit } = require("@octokit/rest");
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
-  userAgent: "v8-riscv CI v1.0.0",
+  userAgent: "v8-riscv CI v1.0.2",
 });
 
 const webhooks = new Webhooks({
@@ -27,11 +27,15 @@ var config = JSON.parse(fs.readFileSync("config.json"));
 
 // When the PR is opened or edited by an approved user, run the build and test
 webhooks.on("pull_request", ({ id, name, payload }) => {
+  console.log(`Handling pull request on ${payload.issue.number}`);
+
   handlePullRequest(payload);
 });
 
 // When a PR is approved by an approved user, run the build and test
 webhooks.on("pull_request_review", ({ id, name, payload }) => {
+  console.log(`Handling review on ${payload.issue.number}`);
+
   handlePullRequestReview(payload);
 });
 
@@ -41,6 +45,7 @@ webhooks.on("push", ({ id, name, payload }) => {
 
 // When a "/retest" comment is added, re-trigger the tests
 webhooks.on("issue_comment", ({ id, name, payload }) => {
+  console.log(`Handling comment on ${payload.issue.number}`);
   handleComment(payload);
 });
 
@@ -384,7 +389,9 @@ function cleanupDocker(tag) {
   try {
     execSync(`docker rm $(docker ps -a -q --filter ancestor=${tag})`);
     execSync(`docker rmi ${tag}`);
-  } catch { }
+  } catch {
+    console.log(`TODO: better housekeeping`);
+  }
 }
 
 app.use("/hooks", webhooks.middleware);
