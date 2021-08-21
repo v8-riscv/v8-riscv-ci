@@ -3,7 +3,7 @@ Version: @VERSION@
 Release: 1
 Summary: V8 RISC-V Terminal
 License: MIT
-URL: https://github.com/v8-riscv/v8
+URL: https://github.com/riscv/v8
 Packager: wuwei2016@iscas.ac.cn
 
 Source: %{name}-%{version}.tar.gz

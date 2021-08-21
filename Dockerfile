@@ -35,7 +35,7 @@ RUN (cd /v8 && ./build/install-build-deps.sh --no-prompt --no-arm)
 
 FROM v8-base as v8-riscv
 
-ARG repo=v8-riscv/v8
+ARG repo=riscv/v8
 ENV GITHUB_REPOSITORY=$repo
 ARG pr_num=1
 ENV PR_NUM=$pr_num

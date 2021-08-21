@@ -1,6 +1,6 @@
 {
   "name": "v8-riscv-ci",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CI webhook server for V8 RISC-V project",
   "main": "index.js",
   "scripts": {
